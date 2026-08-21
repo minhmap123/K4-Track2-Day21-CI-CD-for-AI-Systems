@@ -35,9 +35,9 @@ Bằng cách đánh giá qua `f1_score` (chuyên đo đạc trên lớp dương)
 
 | Khó khăn | Nguyên nhân | Cách giải quyết |
 |---|---|---|
-| ___ | ___ | ___ |
-| ___ | ___ | ___ |
-| ___ | ___ | ___ |
+| Lỗi phiên bản scikit-learn sinh ra AttributeError khi khởi động API qua uvicorn trên VM. | Phiên bản gốc khi train model ở local là (1.4.2) cài qua UV, nhưng `pip3 install` trên VM mặc định tải bản mới nhất (1.7.x) xung đột cách load `.joblib`. | Ssh trực tiếp vào GCE VM và chạy cài đè phiên bản đích danh `pip3 install scikit-learn==1.4.2`. |
+| Pipeline Github Action CI/CD bị kẹt ở bước "Pull data with DVC". | Tài khoản Google Cloud bị dính chính sách `iam.disableServiceAccountKeyCreation` của Organization, chặn tải mã JSON khiến biến bảo mật bị thiếu. | Truy cập GCP Management Console điều chỉnh ghi đè (Override) Policy, chuyển Enforcement thành Off để sinh khóa thủ công vào Github Secrets. |
+| Server FastAPI không khởi động do systemctl báo lỗi CHDIR thất bại. | Biến `$USER` truyền vào file setup `income-api.service` khi chạy bằng bash sudo đã bị thay thế thành `root`, làm hỏng đường dẫn thư mục làm việc `/home/minu2k5`. | Đính kèm rõ ràng tên User gốc (`minu2k5`) vào file cấu hình service thay vì gán động. |
 
 ---
 
@@ -49,7 +49,3 @@ Bằng cách đánh giá qua `f1_score` (chuyên đo đạc trên lớp dương)
 | Bước 3 (thêm `train_batch2`) | 0.7014 | 0.8740 |
 
 **Nhận xét:** f1 giảm nhẹ ~0.01 do dữ liệu thêm vào có cùng điểm phân phối với dữ liệu cũ, không mang thêm thông tin mới đột phá nào. Điều quan trọng nhất là toàn bộ luồng huấn luyện liên tục (Continuous Training) CI/CD được thực hiện tự động hoàn toàn không cần can thiệp thủ công.
-
----
-
-## 5. Phần Bonus Đã Thực Hiện (nếu có)
