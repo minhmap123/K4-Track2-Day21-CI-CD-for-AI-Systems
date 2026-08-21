@@ -54,7 +54,10 @@ Bằng cách đánh giá qua `f1_score` (chuyên đo đạc trên lớp dương)
 
 ## 5. Phần Bonus Đã Thực Hiện (nếu có)
 
-Mình đã hoàn thành tự động 4 trên 5 thử thách nâng cao:
+Mình đã hoàn thành tự động toàn bộ 5/5 thử thách nâng cao:
+
+**Bonus 1: Tracking MLflow Từ Xa Với DagsHub**
+Thay vì lưu cục bộ, toàn bộ luồng huấn luyện CI/CD Github Actions đã được nạp Credentials để tự động bắn thẳng Log/Metrics từ máy chủ của Google Cloud lên bảng theo dõi từ xa của nền tảng DagsHub (Sử dụng remote server URI).
 
 **Bonus 2: Điều Chỉnh Ngưỡng Quyết Định (Thresholding)**
 Thay vì ngưỡng 0.5, thuật toán quét ngưỡng (từ 0.1 tới 0.9) đã tìm được `best_threshold` để tối ưu `f1_score`. Thực tế cho thấy, F1 ở ngưỡng mặc định 0.5 bị hụt giảm đáng kể khi dữ liệu bất đối xứng; trong khi ở ngưỡng tối ưu, F1 được đẩy lên giới hạn tốt nhất có thể, giúp bảo vệ tính toàn vẹn của model khi hoạt động thực tế.
