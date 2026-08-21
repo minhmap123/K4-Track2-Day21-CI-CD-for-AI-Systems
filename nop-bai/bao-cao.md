@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Họ và tên | ___ |
-| MSSV | ___ |
+| Họ và tên | Nguyễn Hoàng Bảo Minh |
+| MSSV | 2A202601626  |
 | Lớp / Khóa | K4 |
-| Repo GitHub | https://github.com/___/___ |
+| Repo GitHub | https://github.com/minhmap123/K4-Track2-Day21-CI-CD-for-AI-Systems |
 | Ngày nộp | 2026-08-21 |
 
 ---
