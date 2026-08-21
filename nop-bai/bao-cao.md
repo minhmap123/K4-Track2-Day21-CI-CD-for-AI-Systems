@@ -45,10 +45,10 @@ Bằng cách đánh giá qua `f1_score` (chuyên đo đạc trên lớp dương)
 
 | | f1_score | accuracy |
 |---|---|---|
-| Bước 2 (chỉ `train_batch1`) | ___ | ___ |
-| Bước 3 (thêm `train_batch2`) | ___ | ___ |
+| Bước 2 (chỉ `train_batch1`) | 0.7149 | 0.8740 |
+| Bước 3 (thêm `train_batch2`) | 0.7014 | 0.8740 |
 
-**Nhận xét:** ___
+**Nhận xét:** f1 giảm nhẹ ~0.01 do dữ liệu thêm vào có cùng điểm phân phối với dữ liệu cũ, không mang thêm thông tin mới đột phá nào. Điều quan trọng nhất là toàn bộ luồng huấn luyện liên tục (Continuous Training) CI/CD được thực hiện tự động hoàn toàn không cần can thiệp thủ công.
 
 ---
 
