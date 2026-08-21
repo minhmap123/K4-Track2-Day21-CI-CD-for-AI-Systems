@@ -49,3 +49,22 @@ Bằng cách đánh giá qua `f1_score` (chuyên đo đạc trên lớp dương)
 | Bước 3 (thêm `train_batch2`) | 0.7014 | 0.8740 |
 
 **Nhận xét:** f1 giảm nhẹ ~0.01 do dữ liệu thêm vào có cùng điểm phân phối với dữ liệu cũ, không mang thêm thông tin mới đột phá nào. Điều quan trọng nhất là toàn bộ luồng huấn luyện liên tục (Continuous Training) CI/CD được thực hiện tự động hoàn toàn không cần can thiệp thủ công.
+
+---
+
+## 5. Phần Bonus Đã Thực Hiện (nếu có)
+
+Mình đã hoàn thành tự động 4 trên 5 thử thách nâng cao:
+
+**Bonus 2: Điều Chỉnh Ngưỡng Quyết Định (Thresholding)**
+Thay vì ngưỡng 0.5, thuật toán quét ngưỡng (từ 0.1 tới 0.9) đã tìm được `best_threshold` để tối ưu `f1_score`. Thực tế cho thấy, F1 ở ngưỡng mặc định 0.5 bị hụt giảm đáng kể khi dữ liệu bất đối xứng; trong khi ở ngưỡng tối ưu, F1 được đẩy lên giới hạn tốt nhất có thể, giúp bảo vệ tính toàn vẹn của model khi hoạt động thực tế.
+
+**Bonus 3: Báo Cáo Precision / Recall Tự Động**
+Luồng CI/CD đã tự động sinh `detail.txt` chứa Precision, Recall và Confusion Matrix cho từng phiên bản. 
+- *Phân tích Trade-off:* Trong bài toán tìm kiếm tập khách hàng có thu nhập cao (>50K) này, nếu ta **gán nhầm (Precision thấp)**, doanh nghiệp sẽ lãng phí chi phí marketing cho nhóm khách nghèo. Nếu ta **bỏ sót (Recall thấp)**, hệ thống sẽ bỏ qua người thực sự giàu và làm hụt doanh thu tiềm năng khổng lồ. Việc ưu tiên Precision hay Recall sẽ phụ thuộc hoàn toàn vào ngân sách chiến dịch: Nếu ngân sách hẹp, hãy tối ưu Precision.
+
+**Bonus 4: Hoàn Trả Về Phiên Bản Trước (Safe Rollback Quality Gate)**
+Đã bổ sung trong luồng `cicd.yml` cơ chế Load tự động `old_report.json` và so sánh. Khi và chỉ khi F1 của Model vừa Train lớn hơn hoặc bằng F1 của Model cũ đang chạy sản xuất thì nút Deploy (Release) mới được bật. Nếu F1 mới < F1 cũ, Quality Gate sẽ bị rớt đỏ.
+
+**Bonus 5: Cảnh Báo Lệch Lạc Dữ Liệu (Data Drift Check)**
+Đã nhúng mã kiểm tra độ lệch tỉ lệ phân bổ Label trong Python trước khi Train. Nếu tỉ lệ nhãn dương >50K bất ngờ bật chênh quá >5% so với phân phối dự kiến gốc (24.8%), nó sẽ được cảnh báo đỏ trên Terminal log để Data Engineer can thiệp làm sạch dữ liệu.

@@ -11,50 +11,69 @@ on:
 
 jobs:
 
-  # JOB 1: Chạy unit tests trên dữ liệu ảo (không cần cloud storage)
   unit-test:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Run tests
-        # 2.11.1: Chạy pytest trên thư mục tests/ với cờ -v
         run: pytest tests/ -v
 
-  # JOB 2: Huấn luyện mô hình trên dữ liệu thực, upload artifact lên cloud storage
   train:
     name: Train
-    needs: unit-test         # Chỉ chạy khi job unit-test qua
+    needs: unit-test
     runs-on: ubuntu-latest
     outputs:
       f1: ${{ steps.read_report.outputs.f1 }}
+      old_f1: ${{ steps.fetch_old_report.outputs.old_f1 }}
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
       - name: Authenticate to Cloud Storage
-        # 2.11.2: Ghi nội dung secret STORAGE_CREDENTIALS ra file tạm và set biến môi trường
         run: |
           echo '${{ secrets.STORAGE_CREDENTIALS }}' > /tmp/sa-key.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json" >> $GITHUB_ENV
 
+      - name: Fetch Old Report (Bonus 4)
+        id: fetch_old_report
+        env:
+          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+        run: |
+          python - <<'PYEOF'
+          import os, json
+          from google.cloud import storage
+          try:
+              client = storage.Client()
+              bucket = client.bucket(os.environ["ARTIFACT_BUCKET"])
+              blob = bucket.blob("artifacts/current/report.json")
+              if blob.exists():
+                  blob.download_to_filename("old_report.json")
+                  with open("old_report.json") as f:
+                      old_f1 = float(json.load(f)["f1_score"])
+                      print(f"OLD F1 SCORE: {old_f1}")
+                      with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                          out.write(f"old_f1={old_f1}\n")
+              else:
+                  with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                      out.write(f"old_f1=0.0\n")
+          except Exception as e:
+              print(f"Failed to fetch old report: {e}")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write("old_f1=0.0\n")
+          PYEOF
+
       - name: Pull data with DVC
-        # 2.11.3: Dùng lệnh dvc pull để tải data
         run: |
           dvc remote modify labstore credentialpath /tmp/sa-key.json
           dvc pull data/train_batch1.csv.dvc data/holdout.csv.dvc
@@ -64,13 +83,11 @@ jobs:
 
       - name: Read report
         id: read_report
-        # 2.11.4: Đọc giá trị f1_score từ file outputs/report.json
         run: |
           f1_val=$(python -c "import json; print(json.load(open('outputs/report.json'))['f1_score'])")
           echo "f1=$f1_val" >> $GITHUB_OUTPUT
 
-      - name: Upload model to Cloud Storage
-        # 2.11.5: Sử dụng google-cloud-storage SDK để upload
+      - name: Upload model and report to Cloud Storage
         env:
           ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
         run: |
@@ -79,44 +96,53 @@ jobs:
           from google.cloud import storage
           client = storage.Client()
           bucket = client.bucket(os.environ["ARTIFACT_BUCKET"])
-          blob = bucket.blob("artifacts/current/model.joblib")
-          blob.upload_from_filename("models/model.joblib")
-          print(f"UPLOAD MODEL LÊN BUCKET THÀNH CÔNG")
+          
+          # Upload Model
+          blob_model = bucket.blob("artifacts/current/model.joblib")
+          blob_model.upload_from_filename("models/model.joblib")
+          
+          # Upload Report for future rollback checks
+          blob_report = bucket.blob("artifacts/current/report.json")
+          blob_report.upload_from_filename("outputs/report.json")
+          print("UPLOAD MODEL & REPORT LÊN BUCKET THÀNH CÔNG")
           PYEOF
 
       - name: Save report as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: report
-          path: outputs/report.json
+          name: training-report
+          path: |
+            outputs/report.json
+            outputs/detail.txt
 
-  # JOB 3: Kiểm tra chất lượng - chỉ cho phép triển khai khi f1_score >= 0.65
   quality-gate:
-    name: Quality Gate
-    needs: train             # Chỉ chạy khi job train qua
+    name: Quality Gate & Rollback Check
+    needs: train
     runs-on: ubuntu-latest
     steps:
-
-      - name: Check quality gate
-        # 2.11.6: QG script
+      - name: Check quality gate & Rollback (Bonus 4)
         run: |
           python - <<'PYEOF'
           import sys
           f1 = float("${{ needs.train.outputs.f1 }}")
+          old_f1 = float("${{ needs.train.outputs.old_f1 }}")
+          
           if f1 < 0.65:
             print(f"FAILED QUALITY GATE: {f1} < 0.65")
             sys.exit(1)
-          else:
-            print(f"PASSED QUALITY GATE: {f1} >= 0.65")
+          
+          if f1 < old_f1:
+            print(f"ROLLBACK TRIGGERED: New F1 ({f1}) is strictly lower than Old F1 ({old_f1}). Blocking release!")
+            sys.exit(1)
+            
+          print(f"PASSED: F1 ({f1}) >= Old F1 ({old_f1}) and >= 0.65")
           PYEOF
 
-  # JOB 4: Triển khai sau khi quality gate qua
   release:
     name: Release
-    needs: quality-gate      # Chỉ chạy khi job quality-gate qua
+    needs: quality-gate
     runs-on: ubuntu-latest
     steps:
-
       - name: SSH deploy to VM
         uses: appleboy/ssh-action@v1.0.3
         with:
